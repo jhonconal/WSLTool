@@ -1,0 +1,116 @@
+#include "distributionpage.h"
+#include "widgets/distrocard.h"
+#include "migrationdialog.h"
+#include <QVBoxLayout>
+#include <QScrollArea>
+#include <QLabel>
+#include <QFrame>
+
+DistributionPage::DistributionPage(QWidget *parent) : QWidget(parent)
+{
+    setupUi();
+}
+
+void DistributionPage::setupUi()
+{
+    QVBoxLayout *vl = new QVBoxLayout(this);
+    vl->setContentsMargins(28, 24, 28, 24);
+    vl->setSpacing(16);
+
+    // 页面标题
+    QLabel *title = new QLabel("WSL 发行版管理");
+    title->setObjectName("pageTitle");
+    vl->addWidget(title);
+
+    QLabel *sub = new QLabel("管理已安装的 WSL Linux 发行版，支持一键迁移到其他磁盘");
+    sub->setObjectName("pageSub");
+    vl->addWidget(sub);
+
+    // 免责提示横幅
+    QWidget *banner = new QWidget;
+    banner->setObjectName("warnBanner");
+    QHBoxLayout *bhl = new QHBoxLayout(banner);
+    bhl->setContentsMargins(16, 12, 16, 12);
+    QLabel *warnIcon = new QLabel();
+    warnIcon->setPixmap(QPixmap(":/icons/card_warning.svg").scaled(16, 16));
+    QLabel *warn = new QLabel(
+        "<b>重要提示</b>：迁移操作存在数据丢失风险！"
+        "迁移前请务必做好数据备份。本工具仅作辅助，"
+        "因操作不当导致的数据损失概不负责。");
+    warn->setObjectName("warnText");
+    warn->setWordWrap(true);
+    bhl->addWidget(warnIcon);
+    bhl->addWidget(warn, 1);
+    vl->addWidget(banner);
+
+    // 滚动区域
+    QScrollArea *scroll = new QScrollArea;
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setObjectName("pageScroll");
+
+    QWidget *scrollContent = new QWidget;
+    scrollContent->setObjectName("pageScrollContent");
+    QVBoxLayout *scrollLayout = new QVBoxLayout(scrollContent);
+    scrollLayout->setContentsMargins(0, 0, 0, 0);
+    scrollLayout->setSpacing(10);
+
+    m_listArea = scrollContent;
+    scroll->setWidget(scrollContent);
+    vl->addWidget(scroll, 1);
+
+    m_emptyLabel = new QLabel("未检测到已安装的 WSL 发行版\n\n"
+                               "请先在 Microsoft Store 或通过命令行安装 WSL 发行版");
+    m_emptyLabel->setAlignment(Qt::AlignCenter);
+    m_emptyLabel->setObjectName("emptyLabel");
+    m_emptyLabel->setVisible(false);
+}
+
+void DistributionPage::setData(const QList<WslDistribution> &distros,
+                                const QList<DiskInfo> &disks)
+{
+    m_distros = distros;
+    m_disks   = disks;
+    populateList();
+}
+
+void DistributionPage::populateList()
+{
+    QVBoxLayout *vl = static_cast<QVBoxLayout*>(m_listArea->layout());
+
+    // 清除旧卡片
+    QLayoutItem *item;
+    while ((item = vl->takeAt(0)) != nullptr) {
+        if (item->widget()) item->widget()->deleteLater();
+        delete item;
+    }
+
+    if (m_distros.isEmpty()) {
+        vl->addWidget(m_emptyLabel);
+        m_emptyLabel->setVisible(true);
+        return;
+    }
+    m_emptyLabel->setVisible(false);
+
+    // C盘先，其他后
+    QList<WslDistribution> sorted;
+    for (const auto &d : m_distros) if (d.isOnCDrive)  sorted.append(d);
+    for (const auto &d : m_distros) if (!d.isOnCDrive) sorted.append(d);
+
+    for (const WslDistribution &distro : sorted) {
+        DistroCard *card = new DistroCard(distro, m_listArea);
+        connect(card, &DistroCard::migrateRequested,
+                this, &DistributionPage::onMigrateRequested);
+        vl->addWidget(card);
+    }
+    vl->addStretch();
+}
+
+void DistributionPage::onMigrateRequested(const WslDistribution &distro)
+{
+    MigrationDialog dlg(distro, m_disks, this);
+    dlg.exec();
+
+    // 迁移后刷新列表（等待外部 refresh 信号或用户手动刷新）
+}
+

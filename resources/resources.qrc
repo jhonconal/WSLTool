@@ -1,0 +1,40 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+<qresource prefix="/styles">
+    <file>styles/dark_theme.qss</file>
+    <file>styles/light_theme.qss</file>
+</qresource>
+<qresource prefix="/">
+    <file>icons/ubuntu.svg</file>
+    <file>icons/debian.svg</file>
+    <file>icons/fedora.svg</file>
+    <file>icons/archlinux.svg</file>
+    <file>icons/opensuse.svg</file>
+    <file>icons/alpine.svg</file>
+    <file>icons/kali.svg</file>
+    <file>icons/oracle.svg</file>
+    <file>icons/amazon.svg</file>
+    <file>icons/tux.svg</file>
+    <file>icons/card_windows.svg</file>
+    <file>icons/card_wsl_ok.svg</file>
+    <file>icons/card_wsl_fail.svg</file>
+    <file>icons/card_kernel.svg</file>
+    <file>icons/card_version.svg</file>
+    <file>icons/card_disk.svg</file>
+    <file>icons/card_warning.svg</file>
+    <file>icons/card_play.svg</file>
+    <file>icons/theme_dark.svg</file>
+    <file>icons/theme_light.svg</file>
+    <file>icons/window_minimize.svg</file>
+    <file>icons/window_minimize_hover.svg</file>
+    <file>icons/window_maximize.svg</file>
+    <file>icons/window_maximize_hover.svg</file>
+    <file>icons/window_restore.svg</file>
+    <file>icons/window_restore_hover.svg</file>
+    <file>icons/window_close.svg</file>
+    <file>icons/window_close_hover.svg</file>
+    <file>icons/refresh.svg</file>
+    <file>icons/home.svg</file>
+    <file>icons/distro.svg</file>
+</qresource>
+</RCC>
