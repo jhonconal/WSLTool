@@ -19,8 +19,8 @@
 
 ```
 src/
-├── main.cpp                     # 入口：UAC 提权检测、QSS 主题、字体、DisclaimerDialog
-├── mainwindow.h/cpp             # 主窗口：无边框拖拽、侧边栏路由、数据加载
+├── main.cpp                     # 入口：单例检测(QLocalServer)、UAC 提权检测(ElevationDialog)、QSS 主题、字体、DisclaimerDialog
+├── mainwindow.h/cpp             # 主窗口：无边框拖拽、侧边栏路由、数据加载、系统托盘(QSystemTrayIcon)
 ├── core/                        # 纯业务逻辑，无 UI 依赖
 │   ├── wslmanager               # 注册表枚举 WSL 发行版、调用 wsl.exe
 │   ├── migrationworker          # 迁移任务（QThread 子类，分步执行）
@@ -36,9 +36,10 @@ src/
     ├── migrationdialog          # 迁移向导：步骤 1 配置
     ├── migrationprogressdialog  # 迁移向导：步骤 2 实时进度
     ├── disclaimerdialog         # 首次运行免责声明（QSettings 持久化状态）
+    ├── elevationdialog          # 管理员权限申请（自定义 UI，替代原生 MessageBoxW）
     └── widgets/
         ├── distrocard           # 单个发行版卡片（含迁移按钮）
-        ├── diskusagebar         # 磁盘使用率可视化条
+        ├── diskusagebar         # 磁盘使用率可视化条（paintEvent 自定义绘制，支持深/浅主题）
         ├── infocard             # 通用信息卡片
         └── sidebarbutton        # 侧边栏导航按钮（含选中态）
 ```
@@ -64,6 +65,31 @@ MainWindow::loadData()
         signals: stepChanged / logMessage / progressValue / finished
 ```
 
+### 单例运行机制
+
+```
+main.cpp 入口流程：
+
+  ① 创建 QApplication
+  ② 不是管理员？ → ElevationDialog → relaunchAsAdmin() → 退出
+  ③ QSharedMemory::create(1) 失败？ → 已有实例 → 发 "activate" 信号 → 退出
+  ④ 创建 QLocalServer 监听 "WSLTool-LocalServer"
+  ⑤ 加载 QSS 主题 → 字体 → DisclaimerDialog → MainWindow → exec()
+```
+
+- `QSharedMemory` 检测是否已有实例运行
+- `QLocalServer` / `QLocalSocket` 接收激活信号，将现有窗口带到前台
+- 管理员提权检查在单例检测 **之前**，避免提权后的新进程被旧进程的共享内存残留误杀
+
+### 系统托盘
+
+```
+关闭按钮 → hide() + m_trayIcon->show()
+托盘右键菜单: ["显示主页面", "关闭退出程序"]
+托盘双击: showNormal() + activateWindow() + raise()
+Alt+F4 / 系统关闭 → closeEvent 拦截 → 隐藏到托盘而非退出
+```
+
 ---
 
 ## 编码规范
@@ -72,9 +98,9 @@ MainWindow::loadData()
 
 | 类别 | 风格 | 示例 |
 |------|------|------|
-| 类名 | PascalCase | `WslManager`, `DistroCard` |
-| 成员变量 | `m_` 前缀 + camelCase | `m_distros`, `m_cancelRequested` |
-| 私有方法 | camelCase | `stepStopDistro()`, `setupUi()` |
+| 类名 | PascalCase | `WslManager`, `ElevationDialog` |
+| 成员变量 | `m_` 前缀 + camelCase | `m_distros`, `m_trayIcon` |
+| 私有方法 | camelCase | `setupTrayIcon()`, `raiseMainWindow()` |
 | 信号 | camelCase | `stepChanged(int, int, QString)` |
 | 枚举值 | PascalCase（enum class） | `WslVersion::WSL2`, `DistroState::Running` |
 
@@ -96,13 +122,51 @@ MainWindow::loadData()
 
 ### 样式与主题
 
-- 所有 UI 样式通过 `resources/styles/dark_theme.qss` 统一管理
-- 不在 `.cpp` 中硬编码颜色字符串
-- 新增 Widget 需在 QSS 中添加对应的 objectName 选择器
+- **浅色主题 QSS**：`resources/styles/light_theme.qss`
+- **深色主题 QSS**：`resources/styles/dark_theme.qss`
+- 新增 Widget 需在两个 QSS 文件中添加对应的 objectName 选择器
+- `DiskUsageBar` 使用 `paintEvent` 自定义绘制（不依赖 QSS），需通过 `updateTheme(bool)` 同步主题
+- 自定义绘制控件的默认主题配色应与 `QSettings("WSLTool", "Preferences")` 的 `darkTheme` 默认值（`false`）一致
+- `dark_theme.qss` 和 `light_theme.qss` 必须对称维护，缺少任何一个选择器都会导致按钮显示系统默认样式（如焦点虚线框）
 
 ---
 
 ## 关键模块说明
+
+### `main.cpp` — 程序入口
+
+完整流程：
+1. 高 DPI 设置
+2. `QApplication` 初始化
+3. **管理员权限检查**：非管理员 → `ElevationDialog` 弹出 → 选择提权则 `relaunchAsAdmin()` → 退出
+4. **单例检测**：`QSharedMemory::create(1)` 失败 → `QLocalSocket` 发送 `"activate"` 唤醒已有实例 → 退出
+5. 创建 `QLocalServer` 监听激活信号
+6. 加载浅色主题 QSS → 字体
+7. `DisclaimerDialog` 首次运行检查
+8. `MainWindow` 构建显示
+
+### `ElevationDialog` — 管理员权限申请
+
+替代原有的 `MessageBoxW`，提供与应用一致的主题风格：
+- 深色/浅色主题自动适配（读取 `QSettings`）
+- `shouldElevate()` 返回用户是否选择提权
+- 按钮：「退出程序」/「以管理员身份重启」
+
+### `MainWindow` — 主窗口
+
+新增功能：
+- `setupTrayIcon()`：创建系统托盘图标（使用 `tux.svg`）
+- `closeEvent` 重写：拦截关闭事件，隐藏到托盘
+- `onClose()`：关闭按钮隐藏到托盘
+- 托盘右键菜单：「显示主页面」「关闭退出程序」
+- `raiseMainWindow()` 静态函数用于单例激活
+
+### `DiskUsageBar` — 磁盘使用率条（自定义绘制）
+
+- 使用 `paintEvent` 纯 QPainter 绘制，不依赖 QSS
+- `m_isDark` 默认值必须与应用默认主题一致（`false` = 浅色）
+- `updateTheme(bool)` 由 `DashboardPage::updateTheme()` 传播
+- **注意**：`loadData()` 重建控件后需手动调用 `updateTheme()` 同步当前主题
 
 ### `MigrationWorker` — 迁移核心
 
@@ -161,6 +225,9 @@ stepCleanup()       → 删除临时 tar 文件
 7. **不得在 `models/` 中添加 `QObject` 子类**
    - models 只包含纯数据结构（struct/enum），保持轻量无状态
 
+8. **不得在 `dark_theme.qss` 和 `light_theme.qss` 之间不同步新增选择器**
+   - 缺少对称的 QSS 选择器会导致某些控件在对应主题下显示系统默认样式
+
 ---
 
 ## 添加新功能的指南
@@ -172,7 +239,15 @@ stepCleanup()       → 删除临时 tar 文件
 3. 在 `mainwindow.h` 中前向声明并添加成员指针
 4. 在 `MainWindow::setupSidebar()` 中添加 `SidebarButton`
 5. 在 `MainWindow::setupContent()` 中添加到 `m_stack`
-6. 在 `resources/styles/dark_theme.qss` 中添加样式
+6. 在 `resources/styles/dark_theme.qss` **和** `light_theme.qss` 中添加样式
+
+### 新增一个自定义绘制控件（paintEvent）
+
+1. 在 `src/ui/widgets/` 创建控件
+2. 添加 `updateTheme(bool)` 方法用于主题切换
+3. 成员变量 `m_isDark` 默认值必须与应用全局默认主题一致（`false`）
+4. 在父容器的 `updateTheme()` 中传播主题到该控件
+5. 确保 `loadData()` 等重建操作后调用 `updateTheme()` 同步主题
 
 ### 新增一个后台任务
 
@@ -207,9 +282,11 @@ mingw32-make -j4 2>&1 | findstr /i "warning"
 
 - [ ] `build.bat` 可以无错误完成
 - [ ] 无新增编译器警告（`-Wall`）
-- [ ] 新增的 UI 组件已添加 QSS 样式
+- [ ] 新增的 UI 组件已在 **两个** QSS 文件（dark + light）中添加样式
 - [ ] 长耗时操作未在主线程调用
 - [ ] `WSLTool.pro` 已同步更新新文件路径
+- [ ] 自定义绘制控件的主题默认值与全局一致
+- [ ] `loadData()` 中重建的控件已同步当前主题
 
 ---
 
@@ -219,6 +296,9 @@ mingw32-make -j4 2>&1 | findstr /i "warning"
 - 读取注册表 `HKCU` 一般无需额外权限，但写入或访问 `HKLM` 需要管理员
 - `wsl --export` 的临时 tar 文件默认放在目标目录，迁移完成后由 `stepCleanup()` 删除
 - Inno Setup 打包时最低 Windows 版本为 6.1.7600（Windows 7 RTM）
+- 系统托盘在 Windows 上需要 `QT += widgets`（已包含），无需额外库
+- 单例检测使用 `QSharedMemory` + `QLocalServer`，需要 `QT += network`
+- `CONFIG += windows` 而非 `console`：移除控制台窗口（生产构建），调试时可临时改为 `console`
 
 ---
 

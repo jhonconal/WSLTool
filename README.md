@@ -1,6 +1,6 @@
 # WSL 管理工具 (WSL Manager)
 
-![Snapshoot](D:\workspace\gemini_proj\WSLTool\snapshoot.png)
+![Snapshoot](snapshoot.png)
 
 **一款面向 Windows 用户的 WSL 发行版可视化管理与迁移工具**
 
@@ -18,27 +18,29 @@ WSL 管理工具（WSLTool）是一款基于 **Qt 5 / C++17** 开发的 Windows 
 
 ## 功能特性
 
-| 功能           | 说明                             |
-| ------------ | ------------------------------ |
-| 📊 **仪表盘**   | 展示系统信息、WSL 版本、磁盘使用率概览          |
+| 功能 | 说明 |
+| --- | --- |
+| 📊 **仪表盘** | 展示系统信息、WSL 版本、磁盘使用率概览 |
 | 🐧 **发行版管理** | 枚举所有已安装的 WSL 发行版，显示版本、状态、路径、体积 |
-| 🚚 **迁移向导**  | 以向导形式将 WSL 发行版从 C 盘迁移至任意目标磁盘   |
-| 📈 **实时进度**  | 迁移过程分步显示进度、日志，支持取消操作           |
-| 🔄 **账户配置**  | 迁移时可选配置新用户名与密码                 |
-| 🛡️ **自动提权** | 检测管理员权限并通过 UAC 自动申请提权重启        |
-| 🎨 **暗色主题**  | 内置 QSS 暗色主题，Segoe UI 字体，视觉现代简洁 |
-| ⚠️ **免责声明**  | 首次运行显示操作风险免责声明，防止误操作           |
+| 🚚 **迁移向导** | 以向导形式将 WSL 发行版从 C 盘迁移至任意目标磁盘 |
+| 📈 **实时进度** | 迁移过程分步显示进度、日志，支持取消操作 |
+| 🔄 **账户配置** | 迁移时可选配置新用户名与密码 |
+| 🛡️ **自动提权** | 检测管理员权限并通过自定义 UI 申请提权重启 |
+| 🎨 **深/浅主题** | 内置 QSS 深色与浅色主题，一键切换，Segoe UI 字体 |
+| 🖥️ **系统托盘** | 关闭窗口最小化到托盘，支持右键菜单和双击恢复 |
+| 🔒 **单例运行** | 禁止多开，第二次运行自动唤醒已有窗口 |
+| ⚠️ **免责声明** | 首次运行显示操作风险免责声明，防止误操作 |
 
 ---
 
 ## 系统要求
 
-| 项目   | 要求                         |
-| ---- | -------------------------- |
-| 操作系统 | Windows 7 SP1 及以上（x64）     |
-| WSL  | 已启用 WSL 功能，推荐 WSL 2        |
-| 权限   | **管理员权限**（必需，用于读取注册表与执行迁移） |
-| 运行时  | 无需额外安装（安装包已捆绑 Qt 运行时）      |
+| 项目 | 要求 |
+| ---- | --- |
+| 操作系统 | Windows 7 SP1 及以上（x64） |
+| WSL | 已启用 WSL 功能，推荐 WSL 2 |
+| 权限 | **管理员权限**（必需，用于读取注册表与执行迁移） |
+| 运行时 | 无需额外安装（安装包已捆绑 Qt 运行时） |
 
 ---
 
@@ -54,9 +56,9 @@ WSL 管理工具（WSLTool）是一款基于 **Qt 5 / C++17** 开发的 Windows 
 ### 方式二：直接运行（便携版）
 
 1. 将 `build/release/` 目录下的所有文件解压到任意目录
-2. 右键 `WSLTool.exe` → **以管理员身份运行**
+2. 双击 `WSLTool.exe`（程序会自动申请管理员权限）
 
-> ⚠️ **注意**：必须以管理员身份运行，否则程序会弹出提权对话框并退出。
+> ⚠️ **注意**：程序需要管理员权限，manifest 已声明 `requireAdministrator`，Windows 会自动弹出 UAC 提权。
 
 ---
 
@@ -96,6 +98,13 @@ WSL 管理工具（WSLTool）是一款基于 **Qt 5 / C++17** 开发的 Windows 
 6. 清理临时文件
 
 > 💡 **提示**：迁移过程中如遇错误，工具会尝试自动回滚以保护数据安全。
+
+### 系统托盘
+
+- 点击关闭按钮 → 程序隐藏到系统托盘
+- 右键托盘图标 →「显示主页面」或「关闭退出程序」
+- 双击托盘图标 → 恢复窗口显示
+- **单例保护**：再次运行程序会自动激活已有窗口
 
 ---
 
@@ -153,8 +162,8 @@ windeployqt --release WSLTool.exe
 
 ```
 WSLTool/
-├── WSLTool.pro                  # Qt 项目配置文件
-├── build.bat                    # 一键构建脚本
+├── WSLTool.pro                  # Qt 项目配置文件（QT += core gui widgets concurrent svg network）
+├── build.bat                    # 一键构建脚本（含 pause 保留窗口）
 ├── build/
 │   └── release/                 # 编译输出目录
 ├── installer/
@@ -162,13 +171,15 @@ WSLTool/
 ├── resources/
 │   ├── resources.qrc            # Qt 资源描述文件
 │   ├── app.rc                   # Windows 资源文件（图标、清单）
+│   ├── app.manifest             # UAC 管理员权限声明（requireAdministrator）
 │   ├── app_icon.ico             # 应用图标
 │   ├── icons/                   # UI 图标资源
 │   └── styles/
-│       └── dark_theme.qss       # 全局暗色主题样式表
+│       ├── dark_theme.qss       # 全局深色主题样式表
+│       └── light_theme.qss      # 全局浅色主题样式表
 └── src/
-    ├── main.cpp                 # 程序入口（UAC 提权、主题加载）
-    ├── mainwindow.h/cpp         # 主窗口（无边框拖拽、侧边栏导航）
+    ├── main.cpp                 # 程序入口（单例检测、UAC 提权、主题加载）
+    ├── mainwindow.h/cpp         # 主窗口（无边框拖拽、侧边栏导航、系统托盘）
     ├── core/                    # 核心业务逻辑
     │   ├── wslmanager           # WSL 发行版枚举与管理
     │   ├── migrationworker      # 迁移任务工作线程
@@ -184,9 +195,10 @@ WSLTool/
         ├── migrationdialog      # 迁移配置向导对话框
         ├── migrationprogressdialog  # 迁移进度对话框
         ├── disclaimerdialog     # 首次启动免责声明
+        ├── elevationdialog      # 管理员权限申请（自定义 UI）
         └── widgets/
             ├── distrocard       # 发行版卡片组件
-            ├── diskusagebar     # 磁盘使用率进度条
+            ├── diskusagebar     # 磁盘使用率进度条（paintEvent 自定义绘制）
             ├── infocard         # 信息展示卡片
             └── sidebarbutton    # 侧边栏导航按钮
 ```
@@ -196,17 +208,19 @@ WSLTool/
 ## 技术栈
 
 - **语言**：C++17
-- **框架**：Qt 5.15.2（Widgets、Concurrent）
+- **框架**：Qt 5.15.2（Widgets、Concurrent、Network）
 - **编译器**：MinGW-w64 8.1.0
 - **Windows API**：WinAPI（注册表、进程管理、磁盘信息）、WMI、Shell API
+- **IPC**：QLocalServer / QLocalSocket（单例通信）
 - **打包**：windeployqt + Inno Setup 6
+- **子系统**：`CONFIG += windows`（无控制台窗口）
 
 ---
 
 ## 常见问题
 
 **Q: 程序闪退或无法启动？**  
-A: 确保以管理员身份运行。右键 `WSLTool.exe` → 以管理员身份运行。
+A: 确保以管理员身份运行。manifest 已声明 `requireAdministrator`，双击会自动触发 UAC 提权。
 
 **Q: 找不到我的 WSL 发行版？**  
 A: 程序通过注册表路径 `HKCU\Software\Microsoft\Windows\CurrentVersion\Lxss` 枚举发行版。请确认 WSL 已正确安装且发行版注册表项存在。
@@ -219,6 +233,12 @@ A: 检查目标路径是否存在权限问题，尝试在 PowerShell（管理员
 
 **Q: 支持 WSL 1 迁移吗？**  
 A: 支持，WSL 1 与 WSL 2 均可迁移。WSL 2 使用 VHDX 虚拟磁盘，文件更大但迁移机制相同。
+
+**Q: 关闭窗口后怎么找回程序？**  
+A: 程序关闭按钮默认最小化到系统托盘（任务栏右下角）。右键托盘图标选择「显示主页面」或双击图标即可恢复。
+
+**Q: 重复运行程序会怎样？**  
+A: 程序内置单例检测，第二次运行会自动激活已有窗口并退出。
 
 ---
 
