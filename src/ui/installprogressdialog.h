@@ -1,6 +1,6 @@
 #pragma once
 #include <QDialog>
-#include "../core/migrationworker.h"
+#include "../core/installworker.h"
 
 class QLabel;
 class QProgressBar;
@@ -8,13 +8,12 @@ class QTextEdit;
 class QPushButton;
 class QWidget;
 
-class MigrationProgressDialog : public QDialog
+class InstallProgressDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit MigrationProgressDialog(const MigrationConfig &config,
-                                      QWidget *parent = nullptr);
-    ~MigrationProgressDialog();
+    explicit InstallProgressDialog(const InstallConfig &config, QWidget *parent = nullptr);
+    ~InstallProgressDialog();
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -32,9 +31,9 @@ private:
     void buildStepIndicator(int total);
     void setStepActive(int step);
 
-    MigrationConfig  m_config;
-    MigrationWorker *m_worker;
-    bool             m_finished;
+    InstallConfig  m_config;
+    InstallWorker *m_worker;
+    bool           m_finished;
 
     QLabel       *m_stepLabel;
     QLabel       *m_statusLabel;
@@ -45,4 +44,3 @@ private:
     QList<QLabel*> m_stepDots;
     QList<QLabel*> m_stepLabels;
 };
-

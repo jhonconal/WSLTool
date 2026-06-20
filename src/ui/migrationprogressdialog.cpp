@@ -11,6 +11,7 @@
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QDateTime>
+#include <QKeyEvent>
 
 MigrationProgressDialog::MigrationProgressDialog(const MigrationConfig &config,
                                                    QWidget *parent)
@@ -21,7 +22,7 @@ MigrationProgressDialog::MigrationProgressDialog(const MigrationConfig &config,
 {
     setWindowTitle("迁移进度 — " + config.distro.displayName);
     setModal(true);
-    setMinimumSize(580, 520);
+    setMinimumSize(600, 560);
     setupUi();
 
     // 启动工作线程
@@ -81,7 +82,7 @@ void MigrationProgressDialog::setupUi()
     m_logEdit = new QTextEdit;
     m_logEdit->setObjectName("progressLogEdit");
     m_logEdit->setReadOnly(true);
-    m_logEdit->setMinimumHeight(220);
+    m_logEdit->setMinimumHeight(160);
     vl->addWidget(m_logEdit, 1);
 
     // 状态标签
@@ -306,5 +307,14 @@ void MigrationProgressDialog::closeEvent(QCloseEvent *event)
         m_worker->wait(5000);
     }
     QDialog::closeEvent(event);
+}
+
+void MigrationProgressDialog::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Escape) {
+        event->ignore();
+    } else {
+        QDialog::keyPressEvent(event);
+    }
 }
 

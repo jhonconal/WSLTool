@@ -133,7 +133,7 @@ void DistroCard::setupUi()
                 emit refreshNeeded();
             }
         } else {
-            QProcess::startDetached("cmd.exe", {"/c", "start", "wsl.exe", "-d", m_distro.name});
+            QProcess::startDetached("cmd.exe", {"/c", "start", "wsl.exe", "-d", m_distro.name, "--cd", "~"});
             QTimer::singleShot(1000, this, [this]() {
                 emit refreshNeeded();
             });

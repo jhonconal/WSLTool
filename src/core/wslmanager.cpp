@@ -133,7 +133,7 @@ bool WslManager::setDefaultUser(const QString &distroName, const QString &userNa
             // 获取 uid
             QString out;
             QString cmd = QString("id -u %1").arg(userName);
-            if (runProcess("wsl.exe", {"-d", distroName, "-u", "root", "--", "bash", "-c", cmd}, out, 10000)) {
+            if (runProcess("wsl.exe", {"-d", distroName, "-u", "root", "--", "sh", "-c", cmd}, out, 10000)) {
                 bool ok;
                 int uid = out.trimmed().toInt(&ok);
                 if (ok) {

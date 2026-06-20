@@ -22,7 +22,6 @@ public:
 private slots:
     void onFetchFinished();
     void onInstallRequested(const OnlineDistribution &distro);
-    void onInstallProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 signals:
     void refreshNeeded();
@@ -30,7 +29,6 @@ signals:
 private:
     void setupUi();
     void populateList();
-    void startInstall(const OnlineDistribution &distro, bool isDefault, const QString &targetPath);
 
     QList<WslDistribution>   m_installedDistros;
     QList<DiskInfo>          m_disks;
@@ -42,9 +40,4 @@ private:
     QScrollArea *m_scrollArea;
 
     QFutureWatcher<QList<OnlineDistribution>> *m_watcher;
-
-    // For tracking installation process for custom-path installations
-    QProcess          *m_installProcess = nullptr;
-    OnlineDistribution m_installingDistro;
-    QString            m_installTargetPath;
 };

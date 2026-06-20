@@ -20,10 +20,12 @@ SOURCES += \
     src/core/wslmanager.cpp \
     src/core/diskmanager.cpp \
     src/core/migrationworker.cpp \
+    src/core/installworker.cpp \
     src/ui/dashboardpage.cpp \
     src/ui/distributionpage.cpp \
     src/ui/onlinedistropage.cpp \
     src/ui/installdialog.cpp \
+    src/ui/installprogressdialog.cpp \
     src/ui/migrationdialog.cpp \
     src/ui/migrationprogressdialog.cpp \
     src/ui/disclaimerdialog.cpp \
@@ -40,6 +42,7 @@ HEADERS += \
     src/core/wslmanager.h \
     src/core/diskmanager.h \
     src/core/migrationworker.h \
+    src/core/installworker.h \
     src/models/wsldistribution.h \
     src/models/onlinedistribution.h \
     src/models/diskinfo.h \
@@ -48,6 +51,7 @@ HEADERS += \
     src/ui/distributionpage.h \
     src/ui/onlinedistropage.h \
     src/ui/installdialog.h \
+    src/ui/installprogressdialog.h \
     src/ui/migrationdialog.h \
     src/ui/migrationprogressdialog.h \
     src/ui/disclaimerdialog.h \

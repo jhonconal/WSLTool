@@ -7,6 +7,7 @@
 #include <QMessageBox>
 #include <QStyle>
 #include <QDir>
+#include <QCheckBox>
 
 InstallDialog::InstallDialog(const OnlineDistribution &distro, const QList<DiskInfo> &disks, QWidget *parent)
     : QDialog(parent), m_distro(distro), m_disks(disks)
@@ -94,6 +95,47 @@ void InstallDialog::setupUi()
     m_pathEdit->setText(defaultLetter + ":\\WSL\\" + m_distro.name);
 
     vl->addWidget(m_customSection);
+    vl->addWidget(mkSep());
+
+    // ---- 账号配置 ----
+    m_configAccountCheck = new QCheckBox("  自动配置系统默认登录账户（推荐）");
+    m_configAccountCheck->setObjectName("dialogCheckBox");
+    m_configAccountCheck->setChecked(true);
+    vl->addWidget(m_configAccountCheck);
+
+    m_accountSection = new QWidget;
+    QGridLayout *ag = new QGridLayout(m_accountSection);
+    ag->setSpacing(10);
+    ag->setColumnStretch(1, 1);
+    ag->setContentsMargins(24, 0, 0, 0); // 缩进
+
+    auto mkLbl = [](const QString &t) {
+        QLabel *l = new QLabel(t);
+        l->setObjectName("dialogLabel");
+        return l;
+    };
+
+    m_userEdit = new QLineEdit;
+    m_userEdit->setPlaceholderText("默认用户名，e.g. wsluser");
+    m_userEdit->setText("wsluser");
+    
+    m_passEdit = new QLineEdit;
+    m_passEdit->setPlaceholderText("系统登录密码");
+    m_passEdit->setEchoMode(QLineEdit::Password);
+    
+    m_pass2Edit = new QLineEdit;
+    m_pass2Edit->setPlaceholderText("确认登录密码");
+    m_pass2Edit->setEchoMode(QLineEdit::Password);
+
+    ag->addWidget(mkLbl("用户名"),   0, 0);
+    ag->addWidget(m_userEdit,      0, 1);
+    ag->addWidget(mkLbl("设置密码"), 1, 0);
+    ag->addWidget(m_passEdit,      1, 1);
+    ag->addWidget(mkLbl("确认密码"), 2, 0);
+    ag->addWidget(m_pass2Edit,     2, 1);
+    vl->addWidget(m_accountSection);
+
+    vl->addWidget(mkSep());
 
     // ---- 空间提示与警告 ----
     QWidget *warnCard = new QWidget;
@@ -103,10 +145,10 @@ void InstallDialog::setupUi()
     QLabel *warnIcon = new QLabel();
     warnIcon->setPixmap(QPixmap(":/icons/card_warning.svg").scaled(16, 16));
     QLabel *warnLbl = new QLabel(
-        "<b>安装说明：</b><br>"
-        "1. 安装将打开<b>外部命令行窗口</b>执行下载与系统注册，请在弹出的窗口中耐心等待。<br>"
-        "2. 下载完成后，请根据控制台提示<b>配置您的用户名和密码</b>。<br>"
-        "3. 若您选择指定路径，工具会在命令行安装完成后，<b>自动运行迁移任务</b>将发行版移至目标位置。");
+        "<b>安装部署说明：</b><br>"
+        "1. 系统将自动在后台下载包、注册发行版、静默配置账户，无需您手动在终端交互输入！<br>"
+        "2. 下载部署可能需要约 <b>2~15 分钟</b>，取决于发行版文件大小及网络速度。<br>"
+        "3. 若选择了自定义路径，安装注册成功后，工具会自动将发行版<b>迁移并重新挂载</b>至您的目标位置。");
     warnLbl->setObjectName("warnCardText");
     warnLbl->setWordWrap(true);
     whl->addWidget(warnIcon);
@@ -139,6 +181,14 @@ void InstallDialog::setupUi()
     connect(m_customRadio,  &QRadioButton::toggled, this, &InstallDialog::onInstallTypeChanged);
     connect(m_browseBtn,     &QPushButton::clicked, this, &InstallDialog::onBrowse);
     connect(m_pathEdit,      &QLineEdit::textChanged, this, &InstallDialog::validateForm);
+    connect(m_configAccountCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_accountSection->setVisible(checked);
+        adjustSize();
+        validateForm();
+    });
+    connect(m_userEdit,  &QLineEdit::textChanged, this, &InstallDialog::validateForm);
+    connect(m_passEdit,  &QLineEdit::textChanged, this, &InstallDialog::validateForm);
+    connect(m_pass2Edit, &QLineEdit::textChanged, this, &InstallDialog::validateForm);
 
     validateForm();
 }
@@ -167,6 +217,13 @@ void InstallDialog::validateForm()
     if (m_customRadio->isChecked()) {
         ok = !m_pathEdit->text().trimmed().isEmpty();
     }
+    if (m_configAccountCheck->isChecked()) {
+        if (m_userEdit->text().trimmed().isEmpty()) {
+            ok = false;
+        } else if (!m_passEdit->text().isEmpty() && m_passEdit->text() != m_pass2Edit->text()) {
+            ok = false;
+        }
+    }
     m_startBtn->setEnabled(ok);
 }
 
@@ -179,6 +236,21 @@ QString InstallDialog::targetPath() const
 {
     if (isDefaultInstall()) return "";
     return QDir::toNativeSeparators(m_pathEdit->text().trimmed());
+}
+
+bool InstallDialog::createAccount() const
+{
+    return m_configAccountCheck->isChecked();
+}
+
+QString InstallDialog::username() const
+{
+    return m_userEdit->text().trimmed();
+}
+
+QString InstallDialog::password() const
+{
+    return m_passEdit->text();
 }
 
 void InstallDialog::onStartInstall()

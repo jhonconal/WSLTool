@@ -24,21 +24,27 @@ src/
 ├── core/                        # 纯业务逻辑，无 UI 依赖
 │   ├── wslmanager               # 注册表枚举 WSL 发行版、调用 wsl.exe
 │   ├── migrationworker          # 迁移任务（QThread 子类，分步执行）
+│   ├── installworker            # 在线安装与账户配置（QThread 子类，分步执行）
 │   ├── systemdetector           # Windows 版本、WSL 版本检测
 │   └── diskmanager              # GetDiskFreeSpaceEx / WMI 磁盘信息
 ├── models/                      # 纯数据结构头文件，无 Qt 对象
 │   ├── wsldistribution.h        # WslDistribution struct + WslVersion/DistroState enum
+│   ├── onlinedistribution.h     # OnlineDistribution struct (在线发行版模型)
 │   ├── diskinfo.h               # DiskInfo struct
 │   └── systeminfo.h             # SystemInfo struct
 └── ui/                          # Qt Widgets UI 层
     ├── dashboardpage            # 首页：SystemInfo + DiskInfo 展示
-    ├── distributionpage         # 发行版列表：DistroCard 网格
+    ├── distributionpage         # 发行版列表：DistroCard 网格（支持右键删除、终端启动目录切换）
+    ├── onlinedistropage         # 在线发行版列表页面
+    ├── installdialog            # 在线安装配置对话框（用户名、密码、指定目录）
+    ├── installprogressdialog    # 在线安装进度页面（实时日志、屏蔽 ESC 键）
     ├── migrationdialog          # 迁移向导：步骤 1 配置
-    ├── migrationprogressdialog  # 迁移向导：步骤 2 实时进度
+    ├── migrationprogressdialog  # 迁移向导：步骤 2 实时进度（屏蔽 ESC 键）
     ├── disclaimerdialog         # 首次运行免责声明（QSettings 持久化状态）
     ├── elevationdialog          # 管理员权限申请（自定义 UI，替代原生 MessageBoxW）
     └── widgets/
-        ├── distrocard           # 单个发行版卡片（含迁移按钮）
+        ├── distrocard           # 单个发行版卡片（支持迁移、启动/停止切换、主目录启动、右键删除）
+        ├── onlinedistrocard     # 在线发行版卡片组件
         ├── diskusagebar         # 磁盘使用率可视化条（paintEvent 自定义绘制，支持深/浅主题）
         ├── infocard             # 通用信息卡片
         └── sidebarbutton        # 侧边栏导航按钮（含选中态）
@@ -184,6 +190,24 @@ stepCleanup()       → 删除临时 tar 文件
 - `m_exported` 与 `m_unregistered` 标志用于回滚判断
 - 通过 `m_cancelRequested` 原子标志支持取消（在步骤间检查）
 - **不可在 `run()` 中直接操作 Qt UI**，所有进度通过 `signals` 发出
+
+### `InstallWorker` — 在线安装核心
+
+实现在线发行版静默一键部署（带可选自定义迁移）。步骤包括：
+- `stepInstallDistro()`：静默下载安装包（`wsl.exe --install <name> --no-launch`）
+- `stepInitialize()`：使用 root 身份执行简易命令触发 rootfs 解压初始化（`wsl.exe -d <name> -u root -- echo initialized`）
+- `stepCreateUser()`：使用 root 运行 `sh` 指令创建普通 Linux 账户并加入管理员组（支持 `sudo`/`wheel` fallback，解决无 bash 时的崩溃风险）
+- `stepSetPassword()`：运行 `sh` 命令通过 `chpasswd` 静默设置账户密码
+- `stepSetDefaultUser()`：通过 `printf` 写入 `/etc/wsl.conf` 配置 `[user] default = <user>` 持久化默认登录用户，并写入注册表 `DefaultUid` 双重保险
+- `stepMigrate()`：如用户指定了自定义磁盘，打包导出（`wsl --export`），注销原 C 盘实例，导入（`wsl --import`）至自定义路径，并还原 `DefaultUid` 到新注册表项下，然后清理临时 tar 包
+
+### `InstallProgressDialog` / `MigrationProgressDialog` — 实时进度监控
+
+- 实时通过 QThread 信号显示分步流程、进度值及控制台输出日志
+- **界面防误触机制**：
+  - 重写了 `keyPressEvent(QKeyEvent *event)`，如果捕获到 `ESC` 键则调用 `event->ignore()` 进行拦截，防止用户意外退出导致后台任务被杀或环境配置状态不一致。
+  - 重写 `closeEvent(QCloseEvent *event)` 进行拦截，仅当任务完成后或用户确认强制关闭时方可退出。
+  - 优化了对话框最小尺寸和文本编辑区（QTextEdit）的高度比例，防止因为窗口被布局挤压导致 Label 控件重叠。
 
 ### `WslManager` — 发行版枚举
 

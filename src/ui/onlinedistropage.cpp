@@ -1,7 +1,7 @@
 #include "onlinedistropage.h"
 #include "widgets/onlinedistrocard.h"
 #include "installdialog.h"
-#include "migrationprogressdialog.h"
+#include "installprogressdialog.h"
 #include "../core/wslmanager.h"
 #include <QHBoxLayout>
 #include <QMessageBox>
@@ -19,10 +19,6 @@ OnlineDistroPage::OnlineDistroPage(QWidget *parent) : QWidget(parent)
 
 OnlineDistroPage::~OnlineDistroPage()
 {
-    if (m_installProcess) {
-        m_installProcess->kill();
-        m_installProcess->deleteLater();
-    }
 }
 
 void OnlineDistroPage::setupUi()
@@ -128,88 +124,23 @@ void OnlineDistroPage::populateList()
 
 void OnlineDistroPage::onInstallRequested(const OnlineDistribution &distro)
 {
-    if (m_installProcess && m_installProcess->state() != QProcess::NotRunning) {
-        QMessageBox::warning(this, "正在安装", "当前已有正在进行的安装任务，请等待完成。");
-        return;
-    }
-
     InstallDialog dlg(distro, m_disks, this);
     if (dlg.exec() != QDialog::Accepted) {
         return;
     }
 
-    startInstall(distro, dlg.isDefaultInstall(), dlg.targetPath());
-}
+    InstallConfig config;
+    config.distroName = distro.name;
+    config.friendlyName = distro.friendlyName;
+    config.isDefaultPath = dlg.isDefaultInstall();
+    config.targetDirectory = dlg.targetPath();
+    config.createAccount = dlg.createAccount();
+    config.username = dlg.username();
+    config.password = dlg.password();
 
-void OnlineDistroPage::startInstall(const OnlineDistribution &distro, bool isDefault, const QString &targetPath)
-{
-    m_installingDistro = distro;
-    m_installTargetPath = isDefault ? "" : targetPath;
-
-    // 提示用户
-    QMessageBox::information(this, "开始安装",
-        "正在启动 WSL 安装程序，将在新打开的<b>控制台终端</b>窗口中进行下载和设置。<br><br>"
-        "<b>重要步骤：</b><br>"
-        "1. 请在弹出的命令行窗口中耐性等待其下载完成（可能需要数分钟）。<br>"
-        "2. 下载完成后，<b>必须</b>按照命令行提示<b>创建您的 Linux 用户名和密码</b>。<br>"
-        "3. 配置完成后，可以输入 <code>exit</code> 退出，或直接关闭该终端窗口。<br>"
-        "4. 终端关闭后，本工具将继续完成后续部署（如果是指定路径，则会自动迁移）。",
-        QMessageBox::Ok);
-
-    m_installProcess = new QProcess(this);
-    connect(m_installProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &OnlineDistroPage::onInstallProcessFinished);
-
-    // 在新窗口中执行 wsl --install 并等待结束
-    // cmd.exe /c start /wait wsl.exe --install <name>
-    m_installProcess->start("cmd.exe", {"/c", "start", "/wait", "wsl.exe", "--install", distro.name});
-}
-
-void OnlineDistroPage::onInstallProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
-{
-    Q_UNUSED(exitCode);
-    Q_UNUSED(exitStatus);
-
-    m_installProcess->deleteLater();
-    m_installProcess = nullptr;
-
-    // 检查发行版是否已注册成功
-    WslManager wm;
-    QList<WslDistribution> currentList = wm.enumerateDistributions();
-    WslDistribution targetDistro;
-    bool found = false;
-
-    for (const auto &d : currentList) {
-        if (d.name.compare(m_installingDistro.name, Qt::CaseInsensitive) == 0) {
-            targetDistro = d;
-            found = true;
-            break;
-        }
-    }
-
-    if (!found) {
-        QMessageBox::warning(this, "安装失败",
-            QString("未检测到 <b>%1</b> 的注册信息，安装可能已被取消或发生错误。")
-            .arg(m_installingDistro.friendlyName));
+    InstallProgressDialog *prog = new InstallProgressDialog(config, this);
+    prog->setAttribute(Qt::WA_DeleteOnClose);
+    if (prog->exec() == QDialog::Accepted) {
         emit refreshNeeded();
-        return;
     }
-
-    // 如果指定了自定义路径，启动迁移
-    if (!m_installTargetPath.isEmpty()) {
-        MigrationConfig config;
-        config.distro = targetDistro;
-        config.targetDirectory = m_installTargetPath;
-        config.configureAccount = false; // 不需要重新配置账户，我们稍后通过保留 originalUid 解决，或者由于用户已经设置好，在 registry 里面能读到 default user
-
-        MigrationProgressDialog *prog = new MigrationProgressDialog(config, this);
-        prog->setAttribute(Qt::WA_DeleteOnClose);
-        prog->exec();
-    } else {
-        QMessageBox::information(this, "安装成功",
-            QString("发行版 <b>%1</b> 已成功下载并安装在默认路径！")
-            .arg(m_installingDistro.friendlyName));
-    }
-
-    emit refreshNeeded();
 }
