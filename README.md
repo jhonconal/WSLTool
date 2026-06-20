@@ -1,10 +1,10 @@
 # WSL 管理工具 (WSL Manager)
 
-![Snapshoot](F:\codes\WSLTool\snapshoots\01.png)
+![Snapshoot](snapshoots/01.png)
 
-![Snapshoot](F:\codes\WSLTool\snapshoots\02.png)
+![Snapshoot](snapshoots/02.png)
 
-![Snapshoot](F:\codes\WSLTool\snapshoots\03.png)
+![Snapshoot](snapshoots/03.png)
 
 **一款面向 Windows 用户的 WSL 发行版可视化管理与迁移工具**
 
