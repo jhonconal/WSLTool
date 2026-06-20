@@ -33,6 +33,7 @@ private:
     QString         m_tempTarPath;
     bool            m_exported;
     bool            m_unregistered;
+    int             m_originalUid;
 
     bool stepStopDistro();
     bool stepExport();

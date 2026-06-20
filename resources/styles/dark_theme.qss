@@ -598,3 +598,31 @@ QTextEdit {
     font-size: 11px;
 }
 
+/* ---- OnlineDistroCard ---- */
+OnlineDistroCard {
+    background: #1a1d2e;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+}
+OnlineDistroCard:hover {
+    border-color: rgba(0,212,170,0.3);
+}
+QPushButton#distroInstallBtn {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+        stop:0 #00d4aa, stop:1 #00b4d8);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+}
+QPushButton#distroInstallBtn:hover {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+        stop:0 #33e0bb, stop:1 #33c3e0);
+}
+QPushButton#distroInstallBtn:disabled {
+    background: #1e293b;
+    color: #475569;
+}
+
+

@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QList>
 #include "../models/wsldistribution.h"
+#include "../models/onlinedistribution.h"
 
 class WslManager : public QObject
 {
@@ -11,6 +12,7 @@ public:
     explicit WslManager(QObject *parent = nullptr);
 
     QList<WslDistribution> enumerateDistributions();
+    QList<OnlineDistribution> enumerateOnlineDistributions(const QList<WslDistribution> &installedDistros);
     bool terminateDistribution(const QString &name);
     bool setDefaultUser(const QString &distroName, const QString &userName);
 
@@ -25,4 +27,5 @@ private:
     QString findVhdxPath(const QString &basePath);
     qint64  getFileSize(const QString &path);
 };
+
 

@@ -14,9 +14,11 @@
 #include "models/systeminfo.h"
 #include "models/wsldistribution.h"
 #include "models/diskinfo.h"
+#include "models/onlinedistribution.h"
 
 class DashboardPage;
 class DistributionPage;
+class OnlineDistroPage;
 class SidebarButton;
 
 class MainWindow : public QMainWindow
@@ -69,6 +71,7 @@ private:
     QStackedWidget *m_stack;
     DashboardPage  *m_dashboardPage;
     DistributionPage *m_distroPage;
+    OnlineDistroPage *m_onlineDistroPage;
 
     QList<SidebarButton*> m_sidebarBtns;
     QLabel *m_titleLabel;
@@ -80,6 +83,7 @@ private:
     SystemInfo              m_sysInfo;
     QList<WslDistribution>  m_distros;
     QList<DiskInfo>         m_disks;
+    QList<OnlineDistribution> m_onlineDistros;
 
     // System tray
     QSystemTrayIcon *m_trayIcon;

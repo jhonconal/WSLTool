@@ -128,7 +128,18 @@ bool SystemDetector::runProcess(const QString &program,
     }
 
     QByteArray raw = proc.readAllStandardOutput();
-    if (raw.startsWith("\xFF\xFE") || (raw.size() >= 2 && raw[1] == '\0')) {
+    bool isUtf16 = raw.startsWith("\xFF\xFE");
+    if (!isUtf16 && raw.size() >= 2) {
+        int checkLen = qMin(raw.size(), 100);
+        for (int i = 1; i < checkLen; i += 2) {
+            if (raw[i] == '\0') {
+                isUtf16 = true;
+                break;
+            }
+        }
+    }
+
+    if (isUtf16) {
         int startOffset = raw.startsWith("\xFF\xFE") ? 2 : 0;
         output = QString::fromUtf16(reinterpret_cast<const ushort*>(raw.constData() + startOffset), (raw.size() - startOffset) / 2);
     } else {

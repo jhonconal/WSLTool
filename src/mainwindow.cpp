@@ -9,6 +9,7 @@
 #include "core/diskmanager.h"
 #include "ui/dashboardpage.h"
 #include "ui/distributionpage.h"
+#include "ui/onlinedistropage.h"
 #include "ui/widgets/sidebarbutton.h"
 
 #include <QApplication>
@@ -157,10 +158,11 @@ void MainWindow::setupSidebar()
 
     struct { QString icon; QString text; } pages[] = {
         {"home", "仪表盘"},
+        {"distro", "在线发行版"},
         {"distro", "发行版管理"},
     };
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3; i++) {
         SidebarButton *btn = new SidebarButton(pages[i].icon, pages[i].text, this);
         btn->setChecked(i == 0);
         connect(btn, &SidebarButton::clicked, this, [this, i, btn]() {
@@ -187,11 +189,15 @@ void MainWindow::setupContent()
     m_stack = new QStackedWidget;
     m_stack->setObjectName("contentStack");
 
-    m_dashboardPage = new DashboardPage(this);
-    m_distroPage    = new DistributionPage(this);
+    m_dashboardPage    = new DashboardPage(this);
+    m_distroPage       = new DistributionPage(this);
+    m_onlineDistroPage = new OnlineDistroPage(this);
 
-    m_stack->addWidget(m_dashboardPage);
-    m_stack->addWidget(m_distroPage);
+    m_stack->addWidget(m_dashboardPage);      // index 0
+    m_stack->addWidget(m_onlineDistroPage);  // index 1
+    m_stack->addWidget(m_distroPage);        // index 2
+
+    connect(m_onlineDistroPage, &OnlineDistroPage::refreshNeeded, this, &MainWindow::refreshData);
 }
 
 void MainWindow::loadData()
@@ -210,6 +216,7 @@ void MainWindow::loadData()
 
     m_dashboardPage->setData(m_sysInfo, m_distros, m_disks);
     m_distroPage->setData(m_distros, m_disks);
+    m_onlineDistroPage->loadDataAsync(m_distros, m_disks);
 
     // 重建的控件需要同步当前主题
     m_dashboardPage->updateTheme(m_isDarkTheme);
@@ -226,6 +233,9 @@ void MainWindow::refreshData()
 void MainWindow::switchPage(int index)
 {
     m_stack->setCurrentIndex(index);
+    if (index == 1) {
+        m_onlineDistroPage->loadDataAsync(m_distros, m_disks);
+    }
 }
 
 void MainWindow::onMinimize()

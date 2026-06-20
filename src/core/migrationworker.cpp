@@ -13,6 +13,7 @@ MigrationWorker::MigrationWorker(const MigrationConfig &config, QObject *parent)
     , m_cancelRequested(false)
     , m_exported(false)
     , m_unregistered(false)
+    , m_originalUid(-1)
 {
 }
 
@@ -52,6 +53,26 @@ void MigrationWorker::run()
     }
 
     // ---- 步骤 3: 注销原发行版 ----
+    // 在注销前获取原始 DefaultUid
+    {
+        QSettings lxss("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss",
+                        QSettings::NativeFormat);
+        QStringList guids = lxss.childGroups();
+        for (const QString &guid : guids) {
+            lxss.beginGroup(guid);
+            QString name = lxss.value("DistributionName", "").toString();
+            int uid = lxss.value("DefaultUid", -1).toInt();
+            lxss.endGroup();
+            if (name.compare(m_config.distro.name, Qt::CaseInsensitive) == 0) {
+                m_originalUid = uid;
+                break;
+            }
+        }
+    }
+    if (m_originalUid > 0) {
+        emitLog(QString("  检测到原发行版默认 UID: %1").arg(m_originalUid));
+    }
+
     emitStep(3, totalSteps, "注销原位置发行版...");
     if (m_cancelRequested) {
         rollback();
@@ -161,6 +182,23 @@ bool MigrationWorker::stepImport()
 
     if (ok) {
         emitLog("  导入成功");
+        if (m_originalUid > 0) {
+            QSettings lxss("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss",
+                            QSettings::NativeFormat);
+            QStringList guids = lxss.childGroups();
+            for (const QString &guid : guids) {
+                lxss.beginGroup(guid);
+                QString n = lxss.value("DistributionName", "").toString();
+                lxss.endGroup();
+                if (n.compare(m_config.distro.name, Qt::CaseInsensitive) == 0) {
+                    QSettings reg("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\" + guid,
+                                  QSettings::NativeFormat);
+                    reg.setValue("DefaultUid", m_originalUid);
+                    emitLog(QString("  已恢复默认用户 UID: %1").arg(m_originalUid));
+                    break;
+                }
+            }
+        }
     } else {
         emitLog("[错误] 导入失败: " + out);
     }

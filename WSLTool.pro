@@ -22,11 +22,14 @@ SOURCES += \
     src/core/migrationworker.cpp \
     src/ui/dashboardpage.cpp \
     src/ui/distributionpage.cpp \
+    src/ui/onlinedistropage.cpp \
+    src/ui/installdialog.cpp \
     src/ui/migrationdialog.cpp \
     src/ui/migrationprogressdialog.cpp \
     src/ui/disclaimerdialog.cpp \
     src/ui/elevationdialog.cpp \
     src/ui/widgets/distrocard.cpp \
+    src/ui/widgets/onlinedistrocard.cpp \
     src/ui/widgets/diskusagebar.cpp \
     src/ui/widgets/infocard.cpp \
     src/ui/widgets/sidebarbutton.cpp
@@ -38,15 +41,19 @@ HEADERS += \
     src/core/diskmanager.h \
     src/core/migrationworker.h \
     src/models/wsldistribution.h \
+    src/models/onlinedistribution.h \
     src/models/diskinfo.h \
     src/models/systeminfo.h \
     src/ui/dashboardpage.h \
     src/ui/distributionpage.h \
+    src/ui/onlinedistropage.h \
+    src/ui/installdialog.h \
     src/ui/migrationdialog.h \
     src/ui/migrationprogressdialog.h \
     src/ui/disclaimerdialog.h \
     src/ui/elevationdialog.h \
     src/ui/widgets/distrocard.h \
+    src/ui/widgets/onlinedistrocard.h \
     src/ui/widgets/diskusagebar.h \
     src/ui/widgets/infocard.h \
     src/ui/widgets/sidebarbutton.h

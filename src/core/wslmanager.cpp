@@ -166,7 +166,18 @@ bool WslManager::runProcess(const QString &program,
     }
 
     QByteArray raw = proc.readAllStandardOutput();
-    if (raw.startsWith("\xFF\xFE") || (raw.size() >= 2 && raw[1] == '\0')) {
+    bool isUtf16 = raw.startsWith("\xFF\xFE");
+    if (!isUtf16 && raw.size() >= 2) {
+        int checkLen = qMin(raw.size(), 100);
+        for (int i = 1; i < checkLen; i += 2) {
+            if (raw[i] == '\0') {
+                isUtf16 = true;
+                break;
+            }
+        }
+    }
+
+    if (isUtf16) {
         int startOffset = raw.startsWith("\xFF\xFE") ? 2 : 0;
         output = QString::fromUtf16(reinterpret_cast<const ushort*>(raw.constData() + startOffset), (raw.size() - startOffset) / 2);
     } else {
@@ -243,4 +254,57 @@ qint64 WslManager::getFileSize(const QString &path)
     }
     return -1;
 }
+
+QList<OnlineDistribution> WslManager::enumerateOnlineDistributions(const QList<WslDistribution> &installedDistros)
+{
+    QList<OnlineDistribution> list;
+    QString out;
+    if (!runProcess("wsl.exe", {"--list", "--online"}, out, 15000)) {
+        return list;
+    }
+
+    QStringList lines = out.split('\n');
+    bool headerFound = false;
+
+    for (const QString &rawLine : lines) {
+        QString line = rawLine;
+        line.remove(QChar(0xFEFF)); // BOM
+        line = line.trimmed();
+
+        if (line.isEmpty()) continue;
+
+        if (!headerFound) {
+            if (line.contains("NAME") && (line.contains("FRIENDLY NAME") || line.contains("Friendly Name"))) {
+                headerFound = true;
+            }
+            continue;
+        }
+
+        // Split by the first whitespace sequence
+        int firstSpace = line.indexOf(QRegularExpression("\\s+"));
+        if (firstSpace == -1) continue;
+
+        QString name = line.left(firstSpace).trimmed();
+        QString friendlyName = line.mid(firstSpace).trimmed();
+
+        if (name.isEmpty() || friendlyName.isEmpty()) continue;
+        if (name == "NAME" || name.contains("wsl.exe")) continue;
+
+        OnlineDistribution od;
+        od.name = name;
+        od.friendlyName = friendlyName;
+
+        for (const auto &id : installedDistros) {
+            if (id.name.compare(name, Qt::CaseInsensitive) == 0) {
+                od.isInstalled = true;
+                break;
+            }
+        }
+
+        list.append(od);
+    }
+
+    return list;
+}
+
 
