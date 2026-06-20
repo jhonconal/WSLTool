@@ -1,4 +1,9 @@
 #include "mainwindow.h"
+#ifdef Q_OS_WIN
+#define NOMINMAX
+#include <windows.h>
+#endif
+#include <QCursor>
 #include "core/systemdetector.h"
 #include "core/wslmanager.h"
 #include "core/diskmanager.h"
@@ -27,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
     setAttribute(Qt::WA_TranslucentBackground, false);
     setMinimumSize(800, 600);
-    resize(1024, 700);
+    resize(1280, 768);
 
     QSettings settings("WSLTool", "Preferences");
     m_isDarkTheme = settings.value("darkTheme", false).toBool();
@@ -432,4 +437,58 @@ QIcon MainWindow::loadThemeIcon(const QString &resourcePath, const QString &norm
 
     return icon;
 }
+
+#ifdef Q_OS_WIN
+bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result)
+{
+    Q_UNUSED(eventType);
+    MSG *msg = static_cast<MSG *>(message);
+    if (msg->message == WM_NCHITTEST) {
+        // 使用 QCursor::pos() 获取 Qt 逻辑坐标，避免高 DPI 缩放带来的物理像素偏移问题
+        QPoint globalPos = QCursor::pos();
+        QPoint localPos = mapFromGlobal(globalPos);
+
+        int width = this->width();
+        int height = this->height();
+        const int border = 8; // 边缘检测的宽度，8像素比较容易触发
+
+        bool left = localPos.x() < border;
+        bool right = localPos.x() > width - border;
+        bool top = localPos.y() < border;
+        bool bottom = localPos.y() > height - border;
+
+        // 最大化状态下不能拉伸
+        if (m_maximized) {
+            return false; // 交给 Qt 默认处理
+        }
+
+        if (left && top) {
+            *result = HTTOPLEFT;
+            return true;
+        } else if (left && bottom) {
+            *result = HTBOTTOMLEFT;
+            return true;
+        } else if (right && top) {
+            *result = HTTOPRIGHT;
+            return true;
+        } else if (right && bottom) {
+            *result = HTBOTTOMRIGHT;
+            return true;
+        } else if (left) {
+            *result = HTLEFT;
+            return true;
+        } else if (right) {
+            *result = HTRIGHT;
+            return true;
+        } else if (top) {
+            *result = HTTOP;
+            return true;
+        } else if (bottom) {
+            *result = HTBOTTOM;
+            return true;
+        }
+    }
+    return false;
+}
+#endif
 

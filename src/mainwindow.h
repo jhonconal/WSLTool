@@ -34,6 +34,9 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
+#ifdef Q_OS_WIN
+    bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
+#endif
 
 private slots:
     void switchPage(int index);
