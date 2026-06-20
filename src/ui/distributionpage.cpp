@@ -5,6 +5,9 @@
 #include <QScrollArea>
 #include <QLabel>
 #include <QFrame>
+#include <QProcess>
+#include <QMessageBox>
+#include <QApplication>
 
 DistributionPage::DistributionPage(QWidget *parent) : QWidget(parent)
 {
@@ -101,6 +104,10 @@ void DistributionPage::populateList()
         DistroCard *card = new DistroCard(distro, m_listArea);
         connect(card, &DistroCard::migrateRequested,
                 this, &DistributionPage::onMigrateRequested);
+        connect(card, &DistroCard::deleteRequested,
+                this, &DistributionPage::onDeleteRequested);
+        connect(card, &DistroCard::refreshNeeded,
+                this, &DistributionPage::refreshNeeded);
         vl->addWidget(card);
     }
     vl->addStretch();
@@ -112,5 +119,41 @@ void DistributionPage::onMigrateRequested(const WslDistribution &distro)
     dlg.exec();
 
     // 迁移后刷新列表（等待外部 refresh 信号或用户手动刷新）
+}
+
+void DistributionPage::onDeleteRequested(const WslDistribution &distro)
+{
+    QString confirmMsg = QString(
+        "警告：此操作将<b>彻底删除</b>发行版 <b>%1</b> 及其所有本地虚拟磁盘和文件数据！<br><br>"
+        "该操作是<b>不可逆</b>的，且将丢失所有该发行版内的个人文件和配置！<br>"
+        "请确认是否继续？")
+        .arg(distro.displayName.isEmpty() ? distro.name : distro.displayName);
+
+    QMessageBox mb(QMessageBox::Warning, "确认删除", confirmMsg,
+                   QMessageBox::Yes | QMessageBox::No, this);
+    mb.button(QMessageBox::Yes)->setText("确认彻底删除");
+    mb.button(QMessageBox::No)->setText("取消");
+
+    if (mb.exec() != QMessageBox::Yes) return;
+
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+
+    QProcess proc;
+    proc.start("wsl.exe", {"--unregister", distro.name});
+    if (proc.waitForStarted(3000) && proc.waitForFinished(30000)) {
+        QApplication::restoreOverrideCursor();
+        if (proc.exitCode() == 0) {
+            QMessageBox::information(this, "删除成功", QString("发行版 <b>%1</b> 已成功注销并清理！").arg(distro.name));
+            emit refreshNeeded();
+        } else {
+            QString err = QString::fromLocal8Bit(proc.readAllStandardOutput());
+            if (err.isEmpty()) err = QString::fromLocal8Bit(proc.readAllStandardError());
+            QMessageBox::critical(this, "删除失败", QString("删除 <b>%1</b> 失败：<br>%2").arg(distro.name, err));
+        }
+    } else {
+        QApplication::restoreOverrideCursor();
+        proc.kill();
+        QMessageBox::critical(this, "删除失败", "删除操作已超时或无法启动进程。");
+    }
 }
 

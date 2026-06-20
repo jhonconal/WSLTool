@@ -5,6 +5,12 @@
 #include <QPainterPath>
 #include <QEvent>
 #include <QVariant>
+#include <QProcess>
+#include <QDesktopServices>
+#include <QUrl>
+#include <QDir>
+#include <QTimer>
+#include "../../mainwindow.h"
 
 DistroCard::DistroCard(const WslDistribution &distro, QWidget *parent)
     : QWidget(parent), m_distro(distro)
@@ -13,6 +19,10 @@ DistroCard::DistroCard(const WslDistribution &distro, QWidget *parent)
     setMinimumHeight(100);
     setMaximumHeight(120);
     setCursor(Qt::ArrowCursor);
+    
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, &QWidget::customContextMenuRequested, this, &DistroCard::showContextMenu);
+    
     setupUi();
 }
 
@@ -103,6 +113,62 @@ void DistroCard::setupUi()
     vl->addLayout(row1);
     vl->addLayout(row2);
 
+    // 启动/停止按钮
+    bool isRunning = (m_distro.state == DistroState::Running);
+    m_launchBtn = new QPushButton(isRunning ? "停止" : "启动");
+    m_launchBtn->setObjectName("distroLaunchBtn");
+    m_launchBtn->setFixedSize(90, 36);
+    m_launchBtn->setCursor(Qt::PointingHandCursor);
+    
+    // 动态生成白色图标（启动为三角形，停止为关闭叉号）
+    QString launchIconPath = isRunning ? ":/icons/window_close.svg" : ":/icons/card_play.svg";
+    m_launchBtn->setIcon(MainWindow::loadThemeIcon(launchIconPath, "#ffffff"));
+    m_launchBtn->setIconSize(QSize(12, 12));
+    
+    connect(m_launchBtn, &QPushButton::clicked, this, [this, isRunning]() {
+        if (isRunning) {
+            QProcess proc;
+            proc.start("wsl.exe", {"--terminate", m_distro.name});
+            if (proc.waitForStarted(3000) && proc.waitForFinished(10000)) {
+                emit refreshNeeded();
+            }
+        } else {
+            QProcess::startDetached("cmd.exe", {"/c", "start", "wsl.exe", "-d", m_distro.name});
+            QTimer::singleShot(1000, this, [this]() {
+                emit refreshNeeded();
+            });
+        }
+    });
+
+    // 主目录按钮
+    m_homeBtn = new QPushButton("主目录");
+    m_homeBtn->setObjectName("distroHomeBtn");
+    m_homeBtn->setFixedSize(90, 36);
+    m_homeBtn->setCursor(Qt::PointingHandCursor);
+    m_homeBtn->setEnabled(m_distro.state == DistroState::Running);
+    connect(m_homeBtn, &QPushButton::clicked, this, [this]() {
+        QString path = QString("\\\\wsl.localhost\\%1\\home").arg(m_distro.name);
+        QDir homeDir(path);
+        if (homeDir.exists()) {
+            QStringList subDirs = homeDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+            if (!subDirs.isEmpty()) {
+                path = path + "\\" + subDirs.first();
+            }
+        } else {
+            path = QString("\\\\wsl$\\%1\\home").arg(m_distro.name);
+            homeDir.setPath(path);
+            if (homeDir.exists()) {
+                QStringList subDirs = homeDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+                if (!subDirs.isEmpty()) {
+                    path = path + "\\" + subDirs.first();
+                }
+            } else {
+                path = QString("\\\\wsl.localhost\\%1").arg(m_distro.name);
+            }
+        }
+        QDesktopServices::openUrl(QUrl::fromLocalFile(QDir::toNativeSeparators(path)));
+    });
+
     // 迁移按钮（仅 C 盘显示）
     m_migrateBtn = new QPushButton("迁移");
     m_migrateBtn->setObjectName("distroMigrateBtn");
@@ -115,6 +181,8 @@ void DistroCard::setupUi()
 
     hl->addWidget(m_iconLabel);
     hl->addLayout(vl, 1);
+    hl->addWidget(m_launchBtn);
+    hl->addWidget(m_homeBtn);
     hl->addWidget(m_migrateBtn);
 }
 
@@ -145,4 +213,28 @@ void DistroCard::paintEvent(QPaintEvent *event)
         p.fillPath(accent, QColor(0x00, 0xd4, 0xaa));
     }
 }
+
+void DistroCard::showContextMenu(const QPoint &pos)
+{
+    Q_UNUSED(pos);
+    if (m_distro.state != DistroState::Stopped) {
+        return;
+    }
+
+    QMenu menu(this);
+    QAction *deleteAct = menu.addAction(QString("删除 '%1'").arg(m_distro.name));
+    deleteAct->setIcon(QIcon(":/icons/window_close.svg"));
+
+    // 将菜单显示在当前卡片的中心位置，而不是跟着鼠标
+    QPoint centerPos = mapToGlobal(rect().center());
+    QSize menuSize = menu.sizeHint();
+    centerPos.rx() -= menuSize.width() / 2;
+    centerPos.ry() -= menuSize.height() / 2;
+
+    QAction *selected = menu.exec(centerPos);
+    if (selected == deleteAct) {
+        emit deleteRequested(m_distro);
+    }
+}
+
 

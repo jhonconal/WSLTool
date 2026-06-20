@@ -157,7 +157,7 @@ void MainWindow::setupSidebar()
     sl->setSpacing(4);
 
     struct { QString icon; QString text; } pages[] = {
-        {"home", "仪表盘"},
+        {"home", "系统概览"},
         {"distro", "在线发行版"},
         {"distro", "发行版管理"},
     };
@@ -198,6 +198,7 @@ void MainWindow::setupContent()
     m_stack->addWidget(m_distroPage);        // index 2
 
     connect(m_onlineDistroPage, &OnlineDistroPage::refreshNeeded, this, &MainWindow::refreshData);
+    connect(m_distroPage, &DistributionPage::refreshNeeded, this, &MainWindow::refreshData);
 }
 
 void MainWindow::loadData()

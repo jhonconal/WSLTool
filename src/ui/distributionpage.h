@@ -13,8 +13,12 @@ public:
     void setData(const QList<WslDistribution> &distros,
                  const QList<DiskInfo> &disks);
 
+signals:
+    void refreshNeeded();
+
 private slots:
     void onMigrateRequested(const WslDistribution &distro);
+    void onDeleteRequested(const WslDistribution &distro);
 
 private:
     void setupUi();

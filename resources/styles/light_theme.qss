@@ -623,3 +623,34 @@ QPushButton#distroInstallBtn:disabled {
     color: #9ca3af;
 }
 
+QPushButton#distroLaunchBtn {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+        stop:0 #00b48b, stop:1 #008f72);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+}
+QPushButton#distroLaunchBtn:hover {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+        stop:0 #00d4a7, stop:1 #00a887);
+}
+QPushButton#distroHomeBtn {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+        stop:0 #3b82f6, stop:1 #1d4ed8);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+}
+QPushButton#distroHomeBtn:hover {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+        stop:0 #60a5fa, stop:1 #3b82f6);
+}
+QPushButton#distroHomeBtn:disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+}
+

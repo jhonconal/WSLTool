@@ -12,6 +12,11 @@ public:
 
 signals:
     void migrateRequested(const WslDistribution &distro);
+    void deleteRequested(const WslDistribution &distro);
+    void refreshNeeded();
+
+private slots:
+    void showContextMenu(const QPoint &pos);
 
 protected:
     void enterEvent(QEvent *event) override;
@@ -28,6 +33,8 @@ private:
     QLabel *m_versionBadge;
     QLabel *m_stateBadge;
     QPushButton *m_migrateBtn;
+    QPushButton *m_launchBtn;
+    QPushButton *m_homeBtn;
     bool m_hovered = false;
     void setupUi();
 };
