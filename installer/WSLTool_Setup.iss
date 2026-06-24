@@ -1,7 +1,7 @@
 ; WSL Tool Inno Setup 安装脚本
 ; 需要 Inno Setup 6.x: https://jrsoftware.org/isinfo.php
 
-#define MyAppName "WSL 管理工具"
+#define MyAppName "WSLTool"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "WSLTool"
 #define MyAppExeName "WSLTool.exe"
